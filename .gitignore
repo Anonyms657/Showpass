@@ -6,3 +6,4 @@ vending_env/
 env/
 media/
 .DS_Store
+.vercel
