@@ -1,0 +1,53 @@
+/* Fix Select2 Multiple Choice Fields (e.g. Genre, Languages) in Jazzmin Dark Theme */
+
+/* Selected pills */
+.select2-container--default .select2-selection--multiple .select2-selection__choice {
+    background-color: #3b82f6 !important;
+    border: 1px solid #2563eb !important;
+    color: #ffffff !important;
+    border-radius: 0.25rem !important;
+    padding: 0.1rem 0.4rem !important;
+    margin-top: 5px !important;
+}
+
+/* Remove 'x' button inside pill */
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+    color: #ffffff !important;
+    margin-right: 5px !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.2) !important;
+    padding-right: 5px !important;
+}
+
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+    color: #f87171 !important;
+    background-color: transparent !important;
+}
+
+/* Input field inside select2 */
+.select2-container--default .select2-search--inline .select2-search__field {
+    color: #e2e8f0 !important;
+}
+
+/* Dropdown menu background */
+.select2-dropdown {
+    background-color: #1e293b !important;
+    border-color: #475569 !important;
+}
+
+/* Dropdown items */
+.select2-container--default .select2-results__option {
+    color: #e2e8f0 !important;
+    background-color: #1e293b !important;
+}
+
+/* Highlighted dropdown item */
+.select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background-color: #3b82f6 !important;
+    color: #ffffff !important;
+}
+
+/* Selected dropdown item */
+.select2-container--default .select2-results__option[aria-selected=true] {
+    background-color: #334155 !important;
+    color: #94a3b8 !important;
+}

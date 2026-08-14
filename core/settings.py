@@ -25,12 +25,13 @@ SECRET_KEY = 'django-insecure-h9w7*f37bsf4$$(i*y#@h@b(#4fs00c1=i2g&y%0i93!9ww&r#
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+AALLOWED_HOSTS = ['192.168.1.87', '127.0.0.1', 'localhost']
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -77,6 +78,9 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+        'OPTIONS': {
+            'timeout': 20,  # Wait up to 20 seconds for locks to clear
+        }
     }
 }
 
@@ -116,3 +120,61 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATICFILES_DIRS = [BASE_DIR / 'static']
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+
+import os
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# Razorpay Payment Gateway Settings
+RAZORPAY_KEY_ID = 'rzp_test_TMXlY3xKwdcL2b'
+RAZORPAY_KEY_SECRET = 'qIN5xVbDmrKVWdz6nuV8sgvv'
+
+# Celery Configuration
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+
+# Execute tasks locally synchronously (Perfect for Windows development without a Redis server!)
+CELERY_TASK_ALWAYS_EAGER = True
+
+# Jazzmin Admin Settings
+JAZZMIN_SETTINGS = {
+    'site_title': 'Showpass Admin',
+    'site_header': 'Showpass',
+    'site_brand': 'Showpass Executive',
+    'welcome_sign': 'Welcome to the Showpass Admin Portal',
+    'copyright': 'Showpass Ltd',
+    'show_ui_builder': False,
+    'topmenu_links': [
+        {'name': 'Home',  'url': 'admin:index', 'permissions': ['auth.view_user']},
+        {'name': 'View Site', 'url': '/', 'new_window': True},
+        {'name': 'Analytics Dashboard', 'url': '/admin-dashboard/'},
+    ],
+    'custom_css': 'css/admin_custom.css',
+}
+
+JAZZMIN_UI_TWEAKS = {
+    'navbar': 'navbar-dark',
+    'theme': 'darkly',
+    'sidebar': 'sidebar-dark-primary',
+    'sidebar_nav_child_indent': True,
+    'sidebar_nav_compact_style': False,
+    'sidebar_nav_legacy_style': False,
+    'sidebar_nav_flat_style': False,
+    'theme_color': 'primary',
+    'dark_mode_theme': 'darkly',
+    'button_classes': {
+        'primary': 'btn-primary',
+        'secondary': 'btn-secondary',
+        'info': 'btn-info',
+        'warning': 'btn-warning',
+        'danger': 'btn-danger',
+        'success': 'btn-success'
+    }
+}

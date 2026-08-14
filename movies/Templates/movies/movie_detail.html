@@ -1,50 +1,250 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>{{ movie.title }}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body class="bg-light">
-    <div class="container mt-5">
-        <a href="{% url 'movie_list' %}" class="btn btn-secondary mb-3">&larr; Back to Movies</a>
-        
-        <!-- Main Movie Details -->
-        <div class="card shadow mb-5 border-0">
-            <div class="card-body">
-                <h1 class="text-danger fw-bold">{{ movie.title }}</h1>
-                <p class="lead">{{ movie.description }}</p>
-                <hr>
-                <div class="row">
-                    <div class="col-md-6">
-                        <p><strong>Duration:</strong> {{ movie.duration_minutes }} mins</p>
-                        <p><strong>Age Rating:</strong> {{ movie.get_age_certification_display }}</p>
+{% extends 'base.html' %}
+
+{% block title %}{{ movie.title }} - Showpass{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Cinematic Header */
+    .cinematic-header {
+        position: relative;
+        min-height: 500px;
+        margin-top: -3rem; /* Pull up under the navbar slightly */
+        display: flex;
+        align-items: flex-end;
+        padding-bottom: 4rem;
+    }
+    
+    .cinematic-bg {
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        {% if movie.posters.first %}
+        background: url('{{ movie.posters.first.image.url }}') center/cover no-repeat;
+        {% else %}
+        background: linear-gradient(135deg, #1e2029, #0B0C10);
+        {% endif %}
+        filter: blur(20px) brightness(0.4);
+        transform: scale(1.1);
+        z-index: -1;
+    }
+
+    .cinematic-overlay {
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: linear-gradient(to bottom, transparent 0%, var(--bg-base) 100%);
+        z-index: 0;
+    }
+
+    .movie-poster-large {
+        border-radius: 1.5rem;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        border: 1px solid var(--glass-border);
+        aspect-ratio: 2/3;
+        object-fit: cover;
+        width: 100%;
+        max-width: 320px;
+    }
+
+    .stat-badge {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 1rem;
+        padding: 0.5rem 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 600;
+        color: white;
+    }
+
+    /* Showtime Stub */
+    .showtime-stub {
+        background: var(--glass-bg);
+        border: 1px dashed var(--text-muted);
+        border-radius: 1rem;
+        padding: 1.5rem;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .showtime-stub::before, .showtime-stub::after {
+        content: '';
+        position: absolute;
+        width: 30px; height: 30px;
+        background: var(--bg-base);
+        border-radius: 50%;
+        top: 50%;
+        transform: translateY(-50%);
+        border: 1px dashed var(--text-muted);
+    }
+
+    .showtime-stub::before { left: -15px; border-left: none; }
+    .showtime-stub::after { right: -15px; border-right: none; }
+
+    .showtime-stub:hover {
+        border-color: var(--accent-primary);
+        transform: translateY(-5px);
+        box-shadow: var(--accent-glow);
+    }
+    .showtime-stub:hover::before, .showtime-stub:hover::after {
+        border-color: var(--accent-primary);
+    }
+
+    /* Youtube Wrapper */
+    .youtube-wrapper {
+        position: relative;
+        padding-bottom: 56.25%; /* 16:9 */
+        height: 0;
+        border-radius: 1.5rem;
+        overflow: hidden;
+        box-shadow: var(--glass-shadow);
+        border: 1px solid var(--glass-border);
+    }
+    .youtube-wrapper iframe {
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cinematic-header">
+    <div class="cinematic-bg"></div>
+    <div class="cinematic-overlay"></div>
+    
+    <div class="container position-relative" style="z-index: 2;">
+        <div class="row align-items-end gy-4">
+            <div class="col-lg-3 col-md-4 text-center text-md-start">
+                {% if movie.posters.first %}
+                    <img src="{{ movie.posters.first.image.url }}" alt="{{ movie.title }}" class="movie-poster-large">
+                {% else %}
+                    <div class="movie-poster-large bg-dark d-flex align-items-center justify-content-center text-muted flex-column mx-auto mx-md-0">
+                        <i class="bi bi-film fs-1"></i>
+                        <span>No Poster</span>
                     </div>
-                    <div class="col-md-6">
-                        {% if movie.youtube_trailer_url %}
-                        <a href="{{ movie.youtube_trailer_url }}" target="_blank" class="btn btn-danger w-100">Watch Trailer</a>
-                        {% endif %}
+                {% endif %}
+            </div>
+            
+            <div class="col-lg-9 col-md-8 text-white">
+                <div class="d-flex flex-wrap gap-2 mb-3 justify-content-center justify-content-md-start">
+                    {% if movie.is_trending %}
+                    <span class="badge bg-danger rounded-pill px-3 py-2 border border-danger"><i class="bi bi-fire me-1"></i> Trending</span>
+                    {% endif %}
+                    <span class="badge bg-primary rounded-pill px-3 py-2 border border-primary">{{ movie.age_certification }}</span>
+                </div>
+                
+                <h1 class="display-3 fw-extrabold mb-3 text-center text-md-start" style="letter-spacing: -0.03em;">{{ movie.title }}</h1>
+                
+                <div class="d-flex flex-wrap gap-3 mb-4 justify-content-center justify-content-md-start">
+                    <div class="stat-badge">
+                        <i class="bi bi-star-fill text-warning"></i> {{ movie.average_rating|default:"New" }} / 5
+                    </div>
+                    <div class="stat-badge">
+                        <i class="bi bi-clock"></i> {{ movie.duration_minutes }} mins
+                    </div>
+                    <div class="stat-badge">
+                        <i class="bi bi-calendar3"></i> {{ movie.release_date|date:"M d, Y" }}
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 mb-4 justify-content-center justify-content-md-start align-items-center flex-wrap">
+                    {% for genre in movie.genres.all %}
+                        <span class="badge bg-white bg-opacity-10 text-white rounded-pill px-3 py-2 border border-white border-opacity-25">{{ genre.name }}</span>
+                    {% endfor %}
+                    {% for language in movie.languages.all %}
+                        <span class="badge bg-info bg-opacity-10 text-info rounded-pill px-3 py-2 border border-info border-opacity-25">{{ language.name }}</span>
+                    {% endfor %}
+                    
+                    {% if movie.youtube_trailer_url %}
+                        <a href="{{ movie.youtube_trailer_url }}" target="_blank" class="btn btn-danger rounded-pill px-4 py-1 border border-danger fw-bold ms-md-2 d-flex align-items-center gap-2" style="box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4); transition: transform 0.2s;">
+                            <i class="bi bi-play-fill fs-5"></i> Watch Trailer
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container py-5">
+    <div class="row g-5">
+        
+        <!-- Left Column: Details & Trailer -->
+        <div class="col-lg-7">
+            <div class="glass-panel p-4 p-md-5 mb-5">
+                <h4 class="fw-bold mb-4">About the Movie</h4>
+                <p class="text-secondary lh-lg" style="font-size: 1.05rem;">
+                    {{ movie.description }}
+                </p>
+            </div>
+
+
+            
+            {% if movie.cast.all %}
+            <div class="glass-panel p-4 mb-5">
+                <h4 class="fw-bold mb-4">Cast & Crew</h4>
+                <div class="d-flex flex-wrap gap-3">
+                    {% for cast in movie.cast.all %}
+                        <div class="d-flex align-items-center gap-2 bg-dark bg-opacity-50 border border-secondary border-opacity-25 rounded-pill px-3 py-2">
+                            <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center text-white" style="width:30px; height:30px; font-size: 0.8rem;">
+                                {{ cast.name.0 }}
+                            </div>
+                            <div>
+                                <div class="fw-bold" style="font-size: 0.9rem;">{{ cast.name }}</div>
+                                <div class="text-muted" style="font-size: 0.75rem;">{{ cast.role }}</div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Right Column: Showtimes -->
+        <div class="col-lg-5">
+            <h4 class="fw-bold mb-4 d-flex align-items-center gap-2">
+                <i class="bi bi-ticket-perforated text-primary"></i> Book Tickets
+            </h4>
+            
+            {% if movie.showtimes.exists %}
+                <div class="d-flex flex-column gap-3">
+                    {% for showtime in movie.showtimes.all %}
+                        <div class="showtime-stub d-flex justify-content-between align-items-center px-4">
+                            <div>
+                                <div class="text-muted small fw-bold text-uppercase tracking-wider mb-1">{{ showtime.screen.name }}</div>
+                                <div class="fw-bold text-main fs-5 mb-1">{{ showtime.start_time|date:"h:i A" }}</div>
+                                <div class="text-secondary small"><i class="bi bi-calendar2 me-1"></i>{{ showtime.start_time|date:"M d, Y" }}</div>
+                            </div>
+                            <div class="text-end">
+                                <div class="fw-extrabold text-primary fs-4 mb-2">₹{{ showtime.ticket_price }}</div>
+                                <a href="{% url 'seat_selection' showtime.id %}" class="btn btn-primary-custom btn-sm">Select Seats</a>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="glass-panel p-5 text-center">
+                    <div class="bg-secondary bg-opacity-10 rounded-circle d-inline-flex p-3 mb-3 text-muted">
+                        <i class="bi bi-calendar-x fs-1"></i>
+                    </div>
+                    <h5 class="fw-bold">No Showtimes Available</h5>
+                    <p class="text-muted small mb-0">Please check back later or try another movie.</p>
+                </div>
+            {% endif %}
+            
+            <div class="glass-panel p-4 mt-5 border-primary border-opacity-25" style="background: rgba(99, 102, 241, 0.05);">
+                <div class="d-flex gap-3 align-items-start">
+                    <i class="bi bi-shield-check text-primary fs-3"></i>
+                    <div>
+                        <h6 class="fw-bold text-main mb-1">100% Secure Booking</h6>
+                        <p class="text-muted small mb-0">Your payments are secured with industry-standard 256-bit encryption.</p>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Task 1 Requirement: Recommendations Section -->
-        <h3 class="mb-3">You Might Also Like</h3>
-        <div class="row">
-            {% for sim_movie in similar_movies %}
-            <div class="col-md-3">
-                <div class="card mb-3">
-                    <div class="card-body">
-                        <h6>{{ sim_movie.title }}</h6>
-                        <a href="{% url 'movie_detail' sim_movie.id %}" class="btn btn-sm btn-outline-danger">View</a>
-                    </div>
-                </div>
-            </div>
-            {% empty %}
-            <p class="text-muted">No similar movies found.</p>
-            {% endfor %}
-        </div>
     </div>
-</body>
-</html>
+</div>
+{% endblock %}

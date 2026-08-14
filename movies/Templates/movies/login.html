@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+
+{% block title %}Sign In - Showpass{% endblock %}
+
+{% block extra_css %}
+<style>
+    .auth-card {
+        max-width: 440px;
+        position: relative;
+    }
+    
+    .auth-card::before {
+        content: '';
+        position: absolute;
+        top: -5px; left: -5px; right: -5px; bottom: -5px;
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.4), rgba(236, 72, 153, 0.4));
+        border-radius: 1.25rem;
+        z-index: -1;
+        filter: blur(15px);
+        opacity: 0.5;
+    }
+
+    .input-group-text {
+        background-color: var(--input-bg) !important;
+        border: 1px solid var(--input-border) !important;
+        border-right: none !important;
+        color: var(--text-muted) !important;
+        transition: all 0.3s ease;
+    }
+
+    .input-group .form-control {
+        border-left: none !important;
+        padding-left: 0;
+        background-color: var(--input-bg) !important;
+    }
+
+    .input-group:focus-within .input-group-text,
+    .input-group:focus-within .form-control {
+        border-color: var(--accent-primary) !important;
+    }
+    .input-group:focus-within .input-group-text {
+        color: var(--accent-primary) !important;
+    }
+
+    .admin-link:hover {
+        color: var(--text-main) !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5 d-flex align-items-center justify-content-center" style="min-height: calc(100vh - 100px);">
+    <div class="auth-card w-100">
+        <div class="glass-panel p-4 p-md-5">
+            <div class="text-center mb-5">
+                <div class="d-inline-block p-3 rounded-circle mb-3" style="background: rgba(99, 102, 241, 0.1);">
+                    <i class="bi bi-person-circle fs-1 text-primary"></i>
+                </div>
+                <h3 class="fw-extrabold text-main mb-1">Welcome Back</h3>
+                <p class="text-muted small">Sign in to access your bookings and exclusive offers.</p>
+            </div>
+
+            <form method="POST">
+                {% csrf_token %}
+                
+                <div class="mb-4">
+                    <label class="form-label text-muted small fw-semibold">Username</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-person"></i></span>
+                        <input type="text" name="username" class="form-control" placeholder="Enter username" required>
+                    </div>
+                </div>
+
+                <div class="mb-5">
+                    <label class="form-label text-muted small fw-semibold">Password</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                        <input type="password" name="password" class="form-control" placeholder="Enter password" required>
+                    </div>
+                </div>
+
+                {% if form.errors %}
+                    <div class="alert py-3 small mb-4 rounded border-0 text-danger d-flex align-items-center gap-2" style="background: rgba(239, 68, 68, 0.1);">
+                        <i class="bi bi-exclamation-triangle-fill"></i> Invalid username or password. Please try again.
+                    </div>
+                {% endif %}
+
+                <button type="submit" class="btn btn-primary-custom w-100 py-3 fw-bold fs-6">
+                    Sign In <i class="bi bi-arrow-right ms-2"></i>
+                </button>
+            </form>
+
+            <div class="text-center mt-5 pt-4 border-top border-secondary border-opacity-25">
+                <span class="small text-muted">Don't have an account?</span>
+                <a href="{% url 'register' %}" class="text-decoration-none fw-bold ms-1 text-primary">Create Account</a>
+                
+                <!-- Admin Link -->
+                <div class="mt-4">
+                    <a href="{% url 'admin_login' %}" class="text-decoration-none admin-link text-muted" style="font-size: 0.8rem; letter-spacing: 0.5px; transition: color 0.3s ease;">
+                        <i class="bi bi-shield-lock-fill me-1 text-primary"></i> Admin Portal
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,244 @@
+{% extends 'base.html' %}
+
+{% block title %}Executive Hub - Showpass{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Dashboard specific variables */
+    :root {
+        --card-shadow: 0 12px 35px 0 rgba(0, 0, 0, 0.35);
+    }
+    
+    [data-theme="light"] {
+        --card-shadow: 0 12px 35px 0 rgba(0, 0, 0, 0.06);
+    }
+
+    .glass-card {
+        background: var(--glass-bg);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border: 1px solid var(--glass-border);
+        border-radius: 1.5rem;
+        box-shadow: var(--card-shadow);
+        position: relative;
+        overflow: hidden;
+        transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .glass-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0; height: 3px;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+        opacity: 0.5;
+    }
+
+    .glass-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 20px 45px 0 rgba(99, 102, 241, 0.18);
+    }
+
+    .glass-card:hover .card-watermark {
+        transform: translateY(-50%) scale(1.12) rotate(-5deg);
+        opacity: 0.12;
+    }
+
+    .card-primary::before { background: linear-gradient(90deg, #0ea5e9, #3b82f6); opacity: 1; }
+    .card-info::before { background: linear-gradient(90deg, #3b82f6, #6366f1); opacity: 1; }
+    .card-warning::before { background: linear-gradient(90deg, #f59e0b, #d97706); opacity: 1; }
+    .card-purple::before { background: linear-gradient(90deg, #a855f7, #c084fc); opacity: 1; }
+    .card-success::before { background: linear-gradient(90deg, #10b981, #059669); opacity: 1; }
+
+    .card-watermark {
+        position: absolute;
+        right: 20px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 5.5rem;
+        opacity: 0.05;
+        pointer-events: none;
+        z-index: 0;
+        transition: transform 0.4s ease, opacity 0.4s ease;
+    }
+
+    .card-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    .list-group-item {
+        background: transparent !important;
+        border-color: var(--glass-border) !important;
+        color: var(--text-main) !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Header Section -->
+    <div class="glass-card p-4 mb-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+        <div>
+            <div class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-3 py-2 mb-3">
+                <i class="bi bi-shield-lock-fill me-1"></i> Executive Dashboard
+            </div>
+            <h2 class="fw-extrabold mb-1 text-main">Intelligence Hub</h2>
+            <p class="text-muted mb-0 small">Real-time revenue processing, seat telemetry, and performance analytics</p>
+        </div>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <a href="?export=csv{% if start_date %}&start_date={{ start_date }}&end_date={{ end_date }}{% endif %}" class="btn btn-success rounded-pill px-4 shadow-sm text-white d-flex align-items-center fw-semibold" style="background: linear-gradient(135deg, #10b981, #059669); border:none;">
+                <i class="bi bi-cloud-arrow-down fs-5 me-2"></i> Export CSV
+            </a>
+        </div>
+    </div>
+
+    <!-- Date Range Filter -->
+    <div class="glass-card p-4 mb-4">
+        <form method="GET" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Start Date</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-transparent border-end-0 text-muted" style="border-color: var(--input-border);"><i class="bi bi-calendar-event"></i></span>
+                    <input type="date" name="start_date" value="{{ start_date }}" class="form-control border-start-0" style="background: var(--input-bg); border-color: var(--input-border); color: var(--text-main);">
+                </div>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">End Date</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-transparent border-end-0 text-muted" style="border-color: var(--input-border);"><i class="bi bi-calendar-check"></i></span>
+                    <input type="date" name="end_date" value="{{ end_date }}" class="form-control border-start-0" style="background: var(--input-bg); border-color: var(--input-border); color: var(--text-main);">
+                </div>
+            </div>
+            <div class="col-md-4 d-flex gap-2">
+                <button type="submit" class="btn btn-primary-custom flex-grow-1 shadow-sm fw-semibold">
+                    <i class="bi bi-funnel-fill me-1"></i> Apply Filter
+                </button>
+                <a href="{% url 'admin_dashboard' %}" class="btn btn-glass px-3" title="Reset Filters">
+                    <i class="bi bi-arrow-counterclockwise fs-5"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Revenue Grid -->
+    <div class="row g-4 mb-4">
+        <!-- Daily -->
+        <div class="col-sm-6 col-xl-4">
+            <div class="glass-card card-primary p-4 h-100 border-primary border-opacity-50">
+                <i class="bi bi-currency-rupee card-watermark text-primary"></i>
+                <div class="card-content">
+                    <span class="text-muted small fw-bold d-block mb-1 tracking-wider text-uppercase">Daily Revenue</span>
+                    <h3 class="fw-extrabold mb-0 text-primary">₹{{ revenue_stats.daily_revenue|default:0 }}</h3>
+                </div>
+            </div>
+        </div>
+        <!-- Weekly -->
+        <div class="col-sm-6 col-xl-4">
+            <div class="glass-card card-info p-4 h-100 border-info border-opacity-50">
+                <i class="bi bi-graph-up-arrow card-watermark text-info"></i>
+                <div class="card-content">
+                    <span class="text-muted small fw-bold d-block mb-1 tracking-wider text-uppercase">Weekly Revenue</span>
+                    <h3 class="fw-extrabold mb-0 text-info">₹{{ revenue_stats.weekly_revenue|default:0 }}</h3>
+                </div>
+            </div>
+        </div>
+        <!-- Monthly -->
+        <div class="col-sm-6 col-xl-4">
+            <div class="glass-card card-warning p-4 h-100 border-warning border-opacity-50">
+                <i class="bi bi-calendar3 card-watermark text-warning"></i>
+                <div class="card-content">
+                    <span class="text-muted small fw-bold d-block mb-1 tracking-wider text-uppercase">Monthly Revenue</span>
+                    <h3 class="fw-extrabold mb-0 text-warning">₹{{ revenue_stats.monthly_revenue|default:0 }}</h3>
+                </div>
+            </div>
+        </div>
+        <!-- Yearly -->
+        <div class="col-sm-6 col-xl-6">
+            <div class="glass-card card-purple p-4 h-100" style="border-color: rgba(168, 85, 247, 0.5);">
+                <i class="bi bi-calendar-range card-watermark" style="color: #a855f7;"></i>
+                <div class="card-content">
+                    <span class="text-muted small fw-bold d-block mb-1 tracking-wider text-uppercase">Yearly Revenue</span>
+                    <h3 class="fw-extrabold mb-0" style="color: #c084fc;">₹{{ revenue_stats.yearly_revenue|default:0 }}</h3>
+                </div>
+            </div>
+        </div>
+        <!-- Lifetime -->
+        <div class="col-sm-6 col-xl-6">
+            <div class="glass-card card-success p-4 h-100 border-success border-opacity-50">
+                <i class="bi bi-shield-check card-watermark text-success"></i>
+                <div class="card-content">
+                    <span class="text-muted small fw-bold d-block mb-1 tracking-wider text-uppercase">Lifetime Revenue</span>
+                    <h3 class="fw-extrabold mb-0 text-success">₹{{ revenue_stats.total_revenue|default:0 }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analytics Breakdown Grid -->
+    <div class="row g-4">
+        <!-- Top Movies -->
+        <div class="col-lg-4">
+            <div class="glass-card p-4 h-100 card-primary">
+                <div class="d-flex align-items-center justify-content-between mb-3 border-bottom border-secondary border-opacity-25 pb-3">
+                    <h5 class="fw-bold text-main mb-0"><i class="bi bi-fire text-danger me-2"></i> Top Movies</h5>
+                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 rounded-pill px-3">Trending</span>
+                </div>
+                <div class="list-group list-group-flush rounded-3 overflow-hidden mt-3">
+                    {% for m in top_movies %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center py-3 px-3">
+                            <span class="fw-semibold text-truncate" style="max-width: 150px;">{{ m.showtime__movie__title }}</span>
+                            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-3 py-2 rounded-pill">{{ m.total_bookings }} Bookings</span>
+                        </div>
+                    {% empty %}
+                        <div class="text-center text-muted py-4">No records found.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Theaters & Occupancy -->
+        <div class="col-lg-4">
+            <div class="glass-card p-4 h-100 card-warning">
+                <div class="d-flex align-items-center justify-content-between mb-3 border-bottom border-secondary border-opacity-25 pb-3">
+                    <h5 class="fw-bold text-main mb-0"><i class="bi bi-building text-warning me-2"></i> Theaters</h5>
+                    <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 rounded-pill px-3">{{ occupancy_percentage }}% Occupied</span>
+                </div>
+                <div class="list-group list-group-flush rounded-3 overflow-hidden mt-3">
+                    {% for t in top_theaters %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center py-3 px-3">
+                            <span class="fw-semibold">{{ t.showtime__screen__name }}</span>
+                            <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-3 py-2 rounded-pill">{{ t.total_screen_bookings }} Bookings</span>
+                        </div>
+                    {% empty %}
+                        <div class="text-center text-muted py-4">No theater data.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Transaction & User Growth Status -->
+        <div class="col-lg-4">
+            <div class="glass-card p-4 h-100 card-info">
+                <div class="d-flex align-items-center justify-content-between mb-3 border-bottom border-secondary border-opacity-25 pb-3">
+                    <h5 class="fw-bold text-main mb-0"><i class="bi bi-people text-info me-2"></i> Growth</h5>
+                    <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 rounded-pill px-3">Users: {{ user_growth_count }}</span>
+                </div>
+                <div class="d-flex flex-column gap-3 mt-4">
+                    <div class="p-3 rounded-4 glass-panel d-flex justify-content-between align-items-center">
+                        <span class="small fw-semibold text-success"><i class="bi bi-check-circle-fill me-2"></i> Successful</span>
+                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-2">{{ cancellation_stats.total_success }}</span>
+                    </div>
+                    <div class="p-3 rounded-4 glass-panel d-flex justify-content-between align-items-center">
+                        <span class="small fw-semibold text-danger"><i class="bi bi-x-circle-fill me-2"></i> Failed</span>
+                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-3 py-2">{{ cancellation_stats.total_failed }}</span>
+                    </div>
+                    <div class="p-3 rounded-4 glass-panel d-flex justify-content-between align-items-center">
+                        <span class="small fw-semibold text-warning"><i class="bi bi-dash-circle-fill me-2"></i> Cancelled</span>
+                        <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-3 py-2">{{ cancellation_stats.total_cancelled }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

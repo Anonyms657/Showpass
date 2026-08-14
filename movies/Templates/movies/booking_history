@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Bookings - BookMyShow</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-gradient: radial-gradient(circle at 10% 10%, rgba(99, 102, 241, 0.12) 0%, transparent 40%),
+                           radial-gradient(circle at 90% 90%, rgba(168, 85, 247, 0.1) 0%, transparent 40%);
+            --glass-bg: rgba(18, 20, 32, 0.85);
+            --glass-border: rgba(255, 255, 255, 0.08);
+        }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bs-body-bg);
+            background-image: var(--bg-gradient);
+            background-attachment: fixed;
+            min-height: 100vh;
+            color: var(--bs-body-color);
+        }
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 1.25rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="fw-extrabold gradient-text mb-1"><i class="bi bi-ticket-perforated me-2"></i> My Booking History</h1>
+            <p class="text-muted small mb-0">View all your past movie bookings and download verified PDF tickets</p>
+        </div>
+        <a href="{% url 'movie_list' %}" class="btn btn-outline-light btn-sm rounded-pill px-3">
+            <i class="bi bi-arrow-left me-1"></i> Back to Movies
+        </a>
+    </div>
+
+    <div class="row g-4">
+        {% for booking in bookings %}
+        <div class="col-md-6">
+            <div class="glass-card p-4 h-100 d-flex flex-column justify-content-between">
+                <div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill px-3">Confirmed</span>
+                        <span class="text-muted small">Booking ID: #{{ booking.id }}</span>
+                    </div>
+                    <h4 class="fw-bold mb-2">{{ booking.showtime.movie.title }}</h4>
+                    <p class="text-muted small mb-1"><i class="bi bi-display me-1"></i> {{ booking.showtime.screen.name }}</p>
+                    <p class="text-muted small mb-1"><i class="bi bi-calendar-event me-1"></i> {{ booking.showtime.start_time|date:"M d, Y • h:i A" }}</p>
+                    <p class="text-muted small mb-3">
+                        <i class="bi bi-geo-alt me-1"></i> Seats: 
+                        {% for seat in booking.seats.all %}
+                            Row {{ seat.row }}-Seat {{ seat.number }}{% if not forloop.last %}, {% endif %}
+                        {% endfor %}
+                    </p>
+                </div>
+                <div class="d-flex justify-content-between align-items-center pt-3 border-top border-secondary border-opacity-25">
+                    <span class="fw-bold text-success fs-5">₹{{ booking.total_price }}</span>
+                    <a href="{% url 'download_ticket_pdf' booking.id %}" class="btn btn-primary btn-sm rounded-pill px-4 fw-semibold shadow-sm">
+                        <i class="bi bi-download me-1"></i> Download PDF Ticket
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 text-center py-5">
+            <div class="glass-card p-5 max-w-md mx-auto">
+                <i class="bi bi-ticket-detailed fs-1 text-muted d-block mb-3"></i>
+                <h4 class="text-muted mb-2">No bookings found yet!</h4>
+                <p class="text-muted small mb-4">Book your first movie ticket to view it here.</p>
+                <a href="{% url 'movie_list' %}" class="btn btn-primary rounded-pill px-4 fw-semibold">Explore Movies</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

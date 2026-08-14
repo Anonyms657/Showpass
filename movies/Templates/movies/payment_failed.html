@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+
+{% block title %}Payment Failed - Showpass{% endblock %}
+
+{% block extra_css %}
+<style>
+    .failed-card {
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 1.5rem;
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        max-width: 620px;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .failed-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 6px;
+        background: linear-gradient(90deg, #EF4444, #B91C1C);
+    }
+
+    .fail-icon-circle {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: rgba(239, 68, 68, 0.1);
+        border: 2px solid #EF4444;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem auto;
+        box-shadow: 0 0 30px rgba(239, 68, 68, 0.3);
+        animation: pulse-fail 2s infinite;
+    }
+
+    @keyframes pulse-fail {
+        0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+        70% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+
+    .timer-badge {
+        font-family: monospace;
+        font-size: 1.25rem;
+        letter-spacing: 2px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="failed-card p-4 p-md-5 mx-auto text-center">
+        <!-- Failure Pulse Icon -->
+        <div class="fail-icon-circle">
+            <i class="bi bi-x-lg text-danger fs-1"></i>
+        </div>
+
+        <h2 class="fw-extrabold text-main mb-2">Payment Failed</h2>
+        <p class="text-danger fw-semibold mb-4 fs-5">We couldn't process your transaction.</p>
+
+        <div class="glass-panel p-4 mb-4 border-danger border-opacity-25" style="background: rgba(239, 68, 68, 0.05);">
+            <p class="text-muted mb-2">Don't worry, we are holding your seats for another:</p>
+            <div class="badge bg-danger bg-opacity-10 text-danger border border-danger timer-badge px-4 py-2 mb-3" id="countdownTimer">
+                01:00
+            </div>
+            <p class="small text-muted mb-0">After this time, the seats will be automatically released to the public.</p>
+        </div>
+
+        <!-- Navigation -->
+        <div class="row g-3">
+            <div class="col-sm-6">
+                <a href="{% url 'seat_selection' showtime_id %}" class="btn btn-glass w-100 py-3 rounded-pill fw-semibold text-danger border-danger border-opacity-50">
+                    <i class="bi bi-x-circle me-2"></i> Cancel
+                </a>
+            </div>
+            <div class="col-sm-6">
+                <a href="{% url 'checkout' showtime_id %}" class="btn btn-danger w-100 py-3 rounded-pill fw-bold shadow-sm">
+                    <i class="bi bi-arrow-clockwise me-2"></i> Try Again Now
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        let timeLeft = 60; // 1 minute in seconds
+        const timerElement = document.getElementById("countdownTimer");
+        
+        const countdown = setInterval(function() {
+            if (timeLeft <= 0) {
+                clearInterval(countdown);
+                timerElement.innerText = "00:00";
+                // Redirect back to seat selection when time expires
+                window.location.href = "{% url 'seat_selection' showtime_id %}";
+            } else {
+                let minutes = Math.floor(timeLeft / 60);
+                let seconds = timeLeft % 60;
+                
+                minutes = minutes < 10 ? "0" + minutes : minutes;
+                seconds = seconds < 10 ? "0" + seconds : seconds;
+                
+                timerElement.innerText = minutes + ":" + seconds;
+            }
+            timeLeft -= 1;
+        }, 1000);
+    });
+</script>
+{% endblock %}

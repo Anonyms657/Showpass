@@ -1,0 +1,231 @@
+{% extends 'base.html' %}
+{% load seat_extras %}
+
+{% block title %}Select Seats - {{ showtime.movie.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Curved Holographic Screen */
+    .screen-container {
+        perspective: 800px;
+        margin-bottom: 4rem;
+        padding-top: 2rem;
+    }
+    
+    .cinema-screen {
+        height: 24px;
+        background: linear-gradient(to bottom, var(--accent-primary), rgba(99, 102, 241, 0.05));
+        border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+        box-shadow: 0 10px 40px rgba(99, 102, 241, 0.4);
+        transform: rotateX(-30deg);
+    }
+
+    .screen-label {
+        font-size: 0.85rem;
+        letter-spacing: 8px;
+        color: var(--accent-primary);
+        text-transform: uppercase;
+        margin-top: 15px;
+        font-weight: 800;
+        text-shadow: 0 0 12px rgba(99, 102, 241, 0.5);
+    }
+
+    /* High Visibility Row Identifiers */
+    .row-identifier {
+        color: var(--text-secondary);
+        font-weight: 800;
+        font-size: 0.9rem;
+        width: 35px;
+        text-align: center;
+    }
+
+    /* Seat Buttons */
+    .seat-btn {
+        width: 42px;
+        height: 42px;
+        border-radius: 10px 10px 4px 4px; /* Shape looks slightly more like a seat */
+        font-size: 0.8rem;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        cursor: pointer;
+        user-select: none;
+        position: relative;
+    }
+
+    /* Add little armrests visually using ::after */
+    .seat-btn::after {
+        content: '';
+        position: absolute;
+        bottom: -4px;
+        left: 10%;
+        width: 80%;
+        height: 4px;
+        border-radius: 2px;
+        background: inherit;
+        opacity: 0.8;
+    }
+
+    .seat-available {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        color: var(--text-secondary) !important;
+    }
+    
+    [data-theme="light"] .seat-available {
+        background: rgba(0, 0, 0, 0.03);
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        color: var(--text-secondary) !important;
+    }
+
+    .seat-available:hover {
+        background: rgba(99, 102, 241, 0.15);
+        border-color: var(--accent-primary);
+        transform: scale(1.1) translateY(-2px);
+        color: var(--text-main) !important;
+    }
+
+    .btn-check:checked + .seat-available {
+        background: var(--accent-primary) !important;
+        border-color: var(--accent-primary) !important;
+        color: #ffffff !important;
+        box-shadow: var(--accent-glow) !important;
+        transform: scale(1.1) translateY(-2px);
+    }
+
+    .seat-held {
+        background: rgba(245, 158, 11, 0.2);
+        border: 1px solid rgba(245, 158, 11, 0.5);
+        color: #F59E0B !important;
+        cursor: not-allowed;
+    }
+
+    .seat-booked {
+        background: rgba(239, 68, 68, 0.15);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: #EF4444 !important;
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
+
+    /* Summary Bar */
+    .checkout-bar {
+        position: sticky;
+        bottom: 2rem;
+        z-index: 100;
+        background: var(--glass-bg);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border: 1px solid var(--glass-border);
+        border-radius: 1.25rem;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Header Details -->
+    <div class="glass-panel p-4 mb-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+        <div>
+            <a href="{% url 'movie_detail' showtime.movie.id %}" class="btn btn-glass btn-sm mb-3">
+                <i class="bi bi-arrow-left"></i> Back
+            </a>
+            <h2 class="fw-extrabold text-main mb-2">{{ showtime.movie.title }}</h2>
+            <div class="d-flex flex-wrap gap-3 align-items-center text-muted small fw-semibold">
+                <span class="text-primary"><i class="bi bi-display me-1"></i> {{ showtime.screen.name }}</span>
+                <span><i class="bi bi-calendar3 me-1"></i> {{ showtime.start_time|date:"M d, Y • h:i A" }}</span>
+            </div>
+        </div>
+        
+        <!-- Legend -->
+        <div class="d-flex flex-wrap align-items-center gap-3 bg-dark bg-opacity-25 p-3 rounded-4 border border-secondary border-opacity-25 small">
+            <div class="d-flex align-items-center gap-2">
+                <span class="seat-btn seat-available" style="width: 20px; height: 20px; font-size:0;"></span>
+                <span class="text-muted fw-bold">Available</span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="seat-btn" style="width: 20px; height: 20px; font-size:0; background: var(--accent-primary);"></span>
+                <span class="text-main fw-bold">Selected</span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="seat-btn seat-held" style="width: 20px; height: 20px; font-size:0;"></span>
+                <span class="text-warning fw-bold">Held</span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="seat-btn seat-booked" style="width: 20px; height: 20px; font-size:0;"></span>
+                <span class="text-danger fw-bold">Booked</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Screen Projection -->
+    <div class="text-center screen-container">
+        <div class="cinema-screen mx-auto" style="max-width: 700px;"></div>
+        <div class="screen-label">SCREEN THIS WAY</div>
+    </div>
+
+    <!-- Seat Booking Form -->
+    <form method="POST" action="{% url 'seat_selection' showtime.id %}" id="seatForm">
+        {% csrf_token %}
+
+        <div class="text-center mb-5 overflow-auto py-4">
+            <div class="d-inline-flex flex-column gap-3">
+                {% regroup all_seats by row as row_list %}
+                {% for row in row_list %}
+                    <div class="d-flex align-items-center justify-content-center gap-2">
+                        <span class="row-identifier">{{ row.grouper }}</span>
+                        
+                        {% for seat in row.list %}
+                            {% if seat.id in booked_seat_ids %}
+                                <div class="seat-btn seat-booked" title="Booked">{{ seat.number }}</div>
+                            {% elif seat.id in held_seat_ids %}
+                                <div class="seat-btn seat-held" title="Held">{{ seat.number }}</div>
+                            {% else %}
+                                <input type="checkbox" class="btn-check seat-checkbox" id="seat_{{ seat.id }}" name="selected_seats" value="{{ seat.id }}" data-price="{{ showtime.ticket_price }}" onchange="updateTotal()">
+                                <label class="seat-btn seat-available" for="seat_{{ seat.id }}">{{ seat.number }}</label>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        <span class="row-identifier">{{ row.grouper }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Sticky Floating Checkout Bar -->
+        <div class="checkout-bar p-4 mx-auto d-flex flex-column flex-sm-row justify-content-between align-items-center gap-3" style="max-width: 800px;">
+            <div>
+                <div class="text-muted small fw-semibold text-uppercase tracking-wider mb-1">Total Amount</div>
+                <div class="d-flex align-items-baseline gap-2">
+                    <span class="fs-2 fw-extrabold text-main" id="totalPrice">₹0</span>
+                    <span class="text-muted small">for <strong class="text-primary" id="selectedCount">0</strong> seats</span>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary-custom btn-lg px-5 py-3" id="proceedBtn" disabled>
+                Proceed to Payment <i class="bi bi-arrow-right ms-2"></i>
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updateTotal() {
+    const checkedSeats = document.querySelectorAll('.seat-checkbox:checked');
+    const count = checkedSeats.length;
+    const pricePerSeat = {{ showtime.ticket_price }};
+    const total = count * pricePerSeat;
+
+    document.getElementById('selectedCount').innerText = count;
+    document.getElementById('totalPrice').innerText = '₹' + total;
+    
+    const proceedBtn = document.getElementById('proceedBtn');
+    proceedBtn.disabled = count === 0;
+}
+</script>
+{% endblock %}
