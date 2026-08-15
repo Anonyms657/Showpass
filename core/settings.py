@@ -90,6 +90,8 @@ DATABASES = {
 
 if os.environ.get('DATABASE_URL'):
     DATABASES['default'] = dj_database_url.config(conn_max_age=600, ssl_require=True)
+    # Disable server-side cursors for compatibility with Supabase's connection pooler
+    DATABASES['default']['DISABLE_SERVER_SIDE_CURSORS'] = True
 
 
 # Password validation
