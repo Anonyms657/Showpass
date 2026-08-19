@@ -20,7 +20,7 @@ from django.http import HttpResponse
 from django.core.paginator import Paginator
 from django.views.decorators.csrf import csrf_exempt
 
-from .models import Movie, Showtime, Screen, Seat, SeatReservation, Payment, Booking
+from .models import Movie, Showtime, Screen, Seat, SeatReservation, Payment, Booking, Genre, Language, Review
 from .utils import generate_ticket_pdf_and_qr
 from .tasks import send_ticket_email_celery
 
@@ -117,6 +117,8 @@ def movie_list(request):
         movies = movies.order_by('min_price')
     elif sort_by == 'price_high':
         movies = movies.order_by('-min_price')
+    else:
+        movies = movies.order_by('-release_date')
 
     movies = movies.distinct()
 
