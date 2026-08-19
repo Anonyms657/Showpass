@@ -32,3 +32,26 @@ def send_ticket_email_celery(self, booking_id, guest_email=None):
     except Exception as exc:
         # Automatically retry the task if email dispatch fails
         raise self.retry(exc=exc)
+from django.utils import timezone
+from .models import SeatReservation
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+
+@shared_task
+def release_expired_seat(reservation_id):
+    try:
+        reservation = SeatReservation.objects.get(id=reservation_id, status='HELD')
+        reservation.delete()
+        
+        # Broadcast the release to all connected clients
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f'seats_{reservation.showtime.id}',
+            {
+                'type': 'seat_update',
+                'action': 'unlocked',
+                'seat_id': reservation.seat.id
+            }
+        )
+    except SeatReservation.DoesNotExist:
+        pass

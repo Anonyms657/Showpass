@@ -31,6 +31,7 @@ ALLOWED_HOSTS = ['192.168.1.87', '127.0.0.1', 'localhost', '.vercel.app', '.onre
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -39,6 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'movies',
+    'channels',
 ]
 
 MIDDLEWARE = [
@@ -70,6 +72,16 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'core.wsgi.application'
+ASGI_APPLICATION = 'core.asgi.application'
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+        },
+    },
+}
 
 
 # Database
@@ -159,7 +171,7 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 
 # Execute tasks locally synchronously (Perfect for Windows development without a Redis server!)
-CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_ALWAYS_EAGER = False
 
 # Jazzmin Admin Settings
 JAZZMIN_SETTINGS = {

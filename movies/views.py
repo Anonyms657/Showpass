@@ -1,3 +1,6 @@
+from datetime import datetime
+import razorpay
+from django.conf import settings
 import uuid
 import csv
 from datetime import timedelta
@@ -7,6 +10,7 @@ from django.contrib.auth import login, authenticate, logout
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.models import User
 from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import Count, Sum, Avg, Min, Q
 from django.db.models.functions import ExtractHour
@@ -70,6 +74,9 @@ def movie_list(request):
     genre = request.GET.get('genre', '')
     language = request.GET.get('language', '')
     theater = request.GET.get('theater', '')
+    city = request.GET.get('city', '')
+    release_date = request.GET.get('release_date', '')
+    show_timing = request.GET.get('show_timing', '')
     min_rating = request.GET.get('min_rating', '')
     sort_by = request.GET.get('sort', '')
 
@@ -81,11 +88,21 @@ def movie_list(request):
     if query:
         movies = movies.filter(Q(title__icontains=query) | Q(description__icontains=query))
     if genre:
-        movies = movies.filter(genres__icontains=genre)
+        movies = movies.filter(genres__name__icontains=genre)
     if language:
-        movies = movies.filter(languages__icontains=language)
+        movies = movies.filter(languages__name__icontains=language)
     if theater:
-        movies = movies.filter(showtimes__screen__name__icontains=theater)
+        movies = movies.filter(showtimes__screen__theater__name__icontains=theater)
+    if city:
+        movies = movies.filter(showtimes__screen__theater__city__icontains=city)
+    if release_date:
+        movies = movies.filter(release_date=release_date)
+    if show_timing:
+        try:
+            show_date = datetime.strptime(show_timing, '%Y-%m-%d').date()
+            movies = movies.filter(showtimes__start_time__date=show_date)
+        except:
+            pass
     if min_rating:
         try:
             movies = movies.filter(avg_rating__gte=float(min_rating))
@@ -93,62 +110,103 @@ def movie_list(request):
             pass
 
     if sort_by == 'popularity':
-        movies = movies.annotate(booking_count=Count('showtimes__bookings')).order_by('-booking_count')
+        movies = movies.annotate(booking_count=Count('showtimes__booking')).order_by('-booking_count')
     elif sort_by == 'newest':
         movies = movies.order_by('-release_date')
-    elif sort_by == 'rating':
-        movies = movies.order_by('-avg_rating')
     elif sort_by == 'price_low':
         movies = movies.order_by('min_price')
     elif sort_by == 'price_high':
         movies = movies.order_by('-min_price')
-    else:
-        movies = movies.order_by('title')
 
     movies = movies.distinct()
-    matching_count = movies.count()
 
-    paginator = Paginator(movies, 8)
+    paginator = Paginator(movies, 12)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
-    recommended_movies = []
-    if request.user.is_authenticated:
-        booked_movie_ids = list(Booking.objects.filter(user=request.user).values_list('showtime__movie_id', flat=True))
-        user_genres = Movie.objects.filter(id__in=booked_movie_ids).values_list('genres', flat=True)
-        if user_genres:
-            recommended_movies = Movie.objects.filter(genres__in=user_genres).exclude(id__in=booked_movie_ids).distinct()[:4]
-    
-    if not recommended_movies:
-        recommended_movies = Movie.objects.order_by('-release_date')[:4]
-
-    available_genres = Movie.objects.values_list('genres', flat=True).distinct()
-    available_languages = Movie.objects.values_list('languages', flat=True).distinct()
-    available_theaters = Screen.objects.values_list('name', flat=True).distinct()
+    # Recently viewed
+    recently_viewed_ids = request.session.get('recently_viewed', [])
+    recently_viewed = Movie.objects.filter(id__in=recently_viewed_ids) if recently_viewed_ids else []
 
     context = {
         'page_obj': page_obj,
-        'matching_count': matching_count,
-        'recommended_movies': recommended_movies,
-        'available_genres': available_genres,
-        'available_languages': available_languages,
-        'available_theaters': available_theaters,
-        'query': query,
-        'selected_genre': genre,
-        'selected_language': language,
-        'selected_theater': theater,
-        'selected_rating': min_rating,
-        'selected_sort': sort_by,
+        'search_query': query,
+        'genres': Genre.objects.all(),
+        'languages': Language.objects.all(),
+        'recently_viewed': recently_viewed,
     }
     return render(request, 'movies/movie_list.html', context)
 
+
 def movie_detail(request, pk):
     movie = get_object_or_404(Movie, pk=pk)
-    return render(request, 'movies/movie_detail.html', {'movie': movie})
+    
+    # Store recently viewed in session
+    recently_viewed = request.session.get('recently_viewed', [])
+    if pk not in recently_viewed:
+        recently_viewed.insert(0, pk)
+        request.session['recently_viewed'] = recently_viewed[:5]
+        
+    showtimes = movie.showtimes.filter(start_time__gte=timezone.now()).order_by('start_time')
+    
+    # Group showtimes by date for the template
+    grouped_showtimes = {}
+    for st in showtimes:
+        date_key = st.start_time.date()
+        if date_key not in grouped_showtimes:
+            grouped_showtimes[date_key] = []
+        grouped_showtimes[date_key].append(st)
+        
+    # Recommendations
+    similar_movies = Movie.objects.filter(genres__in=movie.genres.all()).exclude(id=movie.id).distinct()[:5]
+    trending_movies = Movie.objects.filter(is_trending=True).exclude(id=movie.id)[:5]
+    recent_movies = Movie.objects.exclude(id=movie.id).order_by('-release_date')[:5]
 
-# --- SEAT RESERVATION & PAYMENT ---
+    context = {
+        'movie': movie,
+        'grouped_showtimes': grouped_showtimes,
+        'similar_movies': similar_movies,
+        'trending_movies': trending_movies,
+        'recent_movies': recent_movies,
+    }
+    return render(request, 'movies/movie_detail.html', context)
 
-@csrf_exempt
+@login_required
+def submit_review(request, pk):
+    if request.method == 'POST':
+        movie = get_object_or_404(Movie, pk=pk)
+        
+        # Check if user booked and watched the movie
+        has_watched = Booking.objects.filter(
+            user=request.user, 
+            showtime__movie=movie, 
+            showtime__start_time__lt=timezone.now()
+        ).exists()
+        
+        if not has_watched:
+            messages.error(request, "You can only review movies you have booked and watched.")
+            return redirect('movie_detail', pk=pk)
+            
+        rating = request.POST.get('rating')
+        comment = request.POST.get('comment')
+        
+        Review.objects.update_or_create(
+            movie=movie, user=request.user,
+            defaults={'rating': rating, 'comment': comment, 'is_verified_viewer': True}
+        )
+        messages.success(request, "Review submitted successfully.")
+    return redirect('movie_detail', pk=pk)
+    
+@login_required
+def report_review(request, review_id):
+    review = get_object_or_404(Review, pk=review_id)
+    review.is_reported = True
+    review.save()
+    messages.success(request, "Review reported.")
+    return redirect('movie_detail', pk=review.movie.id)
+
+
+@login_required
 def seat_selection(request, showtime_id):
     showtime = get_object_or_404(Showtime, pk=showtime_id)
     all_seats = Seat.objects.filter(screen=showtime.screen).order_by('row', 'number')
@@ -192,6 +250,23 @@ def seat_selection(request, showtime_id):
                         status='HELD'
                     )
                     created_reservations.append(res.id)
+                    
+                    # Schedule release task
+                    from .tasks import release_expired_seat
+                    release_expired_seat.apply_async((res.id,), countdown=120)
+                    
+                    # Broadcast lock via websockets
+                    from asgiref.sync import async_to_sync
+                    from channels.layers import get_channel_layer
+                    channel_layer = get_channel_layer()
+                    async_to_sync(channel_layer.group_send)(
+                        f'seats_{showtime.id}',
+                        {
+                            'type': 'seat_update',
+                            'action': 'locked',
+                            'seat_id': seat.id
+                        }
+                    )
 
                 request.session['held_reservation_ids'] = created_reservations
 
@@ -221,11 +296,18 @@ def create_payment_order(request, showtime_id):
         return redirect('seat_selection', showtime_id=showtime.id)
 
     total_amount = showtime.ticket_price * user_held_seats.count()
-    mock_order_id = f"ORDER_{uuid.uuid4().hex[:10].upper()}"
+    amount_in_paise = int(total_amount * 100)
+
+    client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+    razorpay_order = client.order.create({
+        "amount": amount_in_paise,
+        "currency": "INR",
+        "payment_capture": "1"
+    })
 
     Payment.objects.create(
         user=request.user if request.user.is_authenticated else None,
-        razorpay_order_id=mock_order_id,
+        razorpay_order_id=razorpay_order['id'],
         amount=total_amount,
         status='PENDING'
     )
@@ -235,84 +317,64 @@ def create_payment_order(request, showtime_id):
     context = {
         'showtime': showtime,
         'total_amount': total_amount,
-        'order_id': mock_order_id,
+        'order_id': razorpay_order['id'],
+        'razorpay_key_id': settings.RAZORPAY_KEY_ID,
+        'amount_in_paise': amount_in_paise,
     }
-    return render(request, 'movies/mock_payment_gateway.html', context)
+    return render(request, 'movies/payment_gateway.html', context)
 
 @csrf_exempt
 def process_mock_payment(request):
     if request.method == "POST":
-        action_type = request.POST.get('action_type')
-        order_id = request.POST.get('order_id')
+        razorpay_payment_id = request.POST.get('razorpay_payment_id')
+        razorpay_order_id = request.POST.get('razorpay_order_id')
+        razorpay_signature = request.POST.get('razorpay_signature')
         guest_email = request.POST.get('guest_email', '').strip()
-        payment_method = request.POST.get('payment_method', 'card')
-        
         showtime_id = request.session.get('current_showtime_id')
         held_ids = request.session.get('held_reservation_ids', [])
 
+        client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+
+        try:
+            client.utility.verify_payment_signature({
+                'razorpay_order_id': razorpay_order_id,
+                'razorpay_payment_id': razorpay_payment_id,
+                'razorpay_signature': razorpay_signature
+            })
+        except razorpay.errors.SignatureVerificationError:
+            messages.error(request, "Payment signature verification failed.")
+            return redirect('seat_selection', showtime_id=showtime_id)
+
         try:
             with transaction.atomic():
-                payment = Payment.objects.get(razorpay_order_id=order_id)
-
+                payment = Payment.objects.get(razorpay_order_id=razorpay_order_id)
                 if payment.status in ['SUCCESS', 'FAILED', 'CANCELLED']:
                     messages.warning(request, "This transaction has already been processed.")
                     return redirect('seat_selection', showtime_id=showtime_id)
 
-                if action_type == 'cancel':
-                    payment.status = 'CANCELLED'
-                    payment.save()
-                    SeatReservation.objects.filter(id__in=held_ids, status='HELD').delete()
-                    messages.warning(request, "Payment cancelled. Your seats have been released.")
-                    return redirect('seat_selection', showtime_id=showtime_id)
+                payment.status = 'SUCCESS'
+                payment.razorpay_payment_id = razorpay_payment_id
+                payment.razorpay_signature = razorpay_signature
+                payment.save()
 
-                failed = False
-                if payment_method == 'card':
-                    card_number = request.POST.get('card_number', '')
-                    if card_number.endswith('0000'):
-                        failed = True
-                elif payment_method == 'upi':
-                    upi_id = request.POST.get('upi_id', '')
-                    if 'fail' in upi_id.lower():
-                        failed = True
-                elif payment_method == 'netbanking':
-                    bank = request.POST.get('bank', '')
-                    if bank == 'fail_bank':
-                        failed = True
+                held_reservations = SeatReservation.objects.filter(id__in=held_ids, status='HELD')
+                held_reservations.update(status='BOOKED')
 
-                if failed:
-                    payment.status = 'FAILED'
-                    payment.save()
-                    
-                    # Instead of deleting, we adjust the reserved_at so it expires exactly 1 minute from now
-                    # (since it expires 2 minutes after reserved_at)
-                    SeatReservation.objects.filter(id__in=held_ids, status='HELD').update(
-                        reserved_at=timezone.now() - timedelta(minutes=1)
-                    )
-                    
-                    return redirect('payment_failed', showtime_id=showtime_id)
-                else:
-                    payment.status = 'SUCCESS'
-                    payment.razorpay_payment_id = f"GATEWAY_TXN_{uuid.uuid4().hex[:10].upper()}"
-                    payment.save()
+                showtime = get_object_or_404(Showtime, pk=showtime_id)
+                booking = Booking.objects.create(
+                    user=payment.user if payment.user else (request.user if request.user.is_authenticated else None),
+                    showtime=showtime,
+                    payment=payment,
+                    total_price=payment.amount
+                )
+                for res in SeatReservation.objects.filter(id__in=held_ids):
+                    booking.seats.add(res.seat)
 
-                    held_reservations = SeatReservation.objects.filter(id__in=held_ids, status='HELD')
-                    held_reservations.update(status='BOOKED')
+                booking_id = booking.id
+                from .tasks import send_ticket_email_celery
+                transaction.on_commit(lambda: send_ticket_email_celery.apply_async((booking_id, guest_email)))
 
-                    showtime = get_object_or_404(Showtime, pk=showtime_id)
-                    booking = Booking.objects.create(
-                        user=payment.user if payment.user else (request.user if request.user.is_authenticated else None),
-                        showtime=showtime,
-                        payment=payment,
-                        total_price=payment.amount
-                    )
-                    for res in SeatReservation.objects.filter(id__in=held_ids):
-                        booking.seats.add(res.seat)
-
-                    booking_id = booking.id
-                    transaction.on_commit(lambda: send_ticket_email_celery.delay(booking_id, guest_email))
-
-                    # Redirect directly to the dedicated confirmation screen!
-                    return redirect('booking_confirmation', booking_id=booking.id)
+                return redirect('booking_confirmation', booking_id=booking.id)
 
         except Payment.DoesNotExist:
             messages.error(request, "Invalid payment order.")
@@ -336,12 +398,23 @@ def booking_history(request):
     bookings = Booking.objects.filter(user=request.user).order_by('-booked_at')
     return render(request, 'movies/booking_history.html', {'bookings': bookings})
 
+@login_required
 def download_ticket_pdf(request, booking_id):
     booking = get_object_or_404(Booking, pk=booking_id)
+    if booking.user != request.user and not request.user.is_staff:
+        messages.error(request, "You do not have permission to view this ticket.")
+        return redirect('movie_list')
+        
     pdf_content = generate_ticket_pdf_and_qr(booking)
     response = HttpResponse(pdf_content, content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="Movie_Ticket_{booking.id}.pdf"'
     return response
+
+@staff_member_required
+def verify_ticket(request, booking_id):
+    booking = get_object_or_404(Booking, pk=booking_id)
+    return render(request, 'movies/verify_ticket.html', {'booking': booking})
+
 
 # --- ADMIN DASHBOARD ---
 
@@ -386,18 +459,24 @@ def admin_dashboard(request):
         total_success=Count('id', filter=Q(status='SUCCESS')),
         total_failed=Count('id', filter=Q(status='FAILED')),
         total_cancelled=Count('id', filter=Q(status='CANCELLED')),
+        total_refunded=Count('id', filter=Q(status='REFUNDED')),
     )
 
-    top_theaters = bookings.values('showtime__screen__name').annotate(
+    top_theaters = bookings.values('showtime__screen__theater__name').annotate(
         total_screen_bookings=Count('id'),
         screen_revenue=Sum('total_price')
-    ).order_by('-total_screen_bookings')[:5]
+    ).order_by('-screen_revenue')[:5]
 
-    total_possible_seats = Seat.objects.count() * Showtime.objects.count() or 1
-    total_booked_seats = bookings.aggregate(total=Count('seats'))['total'] or 0
-    occupancy_percentage = round((total_booked_seats / total_possible_seats) * 100, 1)
+    # Calculate actual occupancy based on past showtimes
+    past_showtimes = Showtime.objects.filter(start_time__lt=now)
+    total_possible_seats = 0
+    for st in past_showtimes:
+        total_possible_seats += st.screen.seats.count()
+        
+    total_booked_seats = Booking.objects.filter(showtime__in=past_showtimes).aggregate(total=Count('seats'))['total'] or 0
+    occupancy_percentage = round((total_booked_seats / total_possible_seats) * 100, 1) if total_possible_seats > 0 else 0
 
-    user_growth_count = User.objects.count()
+    user_growth_count = User.objects.filter(date_joined__gte=month_start).count()
 
     if request.GET.get('export') == 'csv':
         return export_analytics_csv(bookings)

@@ -1,0 +1,75 @@
+PROJECT REPORT: SHOWPASS - PREMIUM MOVIE TICKET BOOKING SYSTEM
+
+1. PROJECT OVERVIEW
+Showpass is a feature-rich, high-performance web application built to simulate a premium movie ticketing platform similar to BookMyShow. It leverages Django (Python) for a robust and secure backend, while incorporating a modern frontend styled with customized Glassmorphism layouts and responsive Bootstrap 5.3 components.
+
+The system is designed for end-to-end user flows, including catalog browsing, dynamic seat holds, secure payment simulation, and automatic ticket generation. It also implements a fully customized administration panel with live analytics dashboards to track sales and venue performance.
+
+---
+
+2. SYSTEM ARCHITECTURE & FEATURES
+
+A. User Authentication & Accounts
+* Standardized login, registration, and logout flows integrated with Django’s secure authentication framework.
+* Account center showcasing historical bookings and downloadable PDF tickets.
+
+B. Movie Catalog & Showtimes
+* Dynamic catalog displaying trending, newly released, and language-filtered movies.
+* Detailed movie overview pages featuring YouTube trailer redirects, rating aggregations, and cast listings.
+* Multi-theater, multi-screen, and dynamic showtime scheduling.
+
+C. Interactive Seat Selection & Reservation holds
+* Real-time grid mapping showing booked, held, and available seats.
+* Automated 2-minute seat hold logic to prevent double bookings.
+* Integrated failure safety hold: If a payment fails, the system holds the chosen seats for an additional 60 seconds (with a live frontend countdown timer) before returning them to the inventory pool.
+
+D. Mock Payment Gateway Integration
+* Fully simulated checkout mimicking Razorpay’s payment interface.
+* Dedicated success page and interactive payment failure landing page with countdown timer and "Try Again" fallback.
+
+E. Ticket PDF & QR Code Generation
+* Automatic generation of PDF tickets containing booking metadata (seats, theater, showtime, price).
+* Dynamic QR code creation embedded directly into the ticket.
+* Asynchronous task execution using Celery to ensure PDF generation and email dispatches do not block client thread response.
+
+F. Executive Administration Dashboard
+* Clean UI styling utilizing Django-Jazzmin with custom dark/neon stylesheets.
+* Custom analytics panel displaying live revenue data, peak usage hours, cancellation metrics, screen occupancy percentages, and user growth charts.
+* CSV export capabilities to download tabular analytics data.
+
+---
+
+3. TECHNOLOGY STACK
+* Backend Framework: Python 3.12 / Django 6.0
+* Frontend styling: HTML5, CSS3 (Custom Glassmorphism), Bootstrap 5.3, Bootstrap Icons
+* Database: PostgreSQL (Production - Supabase) / SQLite (Local Development)
+* Production Server: Gunicorn
+* Deployment Hosting: Render.com
+* Media & Assets Management: WhiteNoise (Static Assets)
+* Asynchronous Tasks: Celery
+* Document Utilities: ReportLab (PDF Engine), qrcode (QR Code Generation)
+
+---
+
+4. DATABASE STRUCTURE & SCHEMAS
+
+The relational schema is configured with the following models:
+* Genre & Language: Categorization metadata for films.
+* CastMember: Details regarding actors, directors, and roles.
+* Movie & MoviePoster: Core movie content, duration, age certification, and associated banners.
+* Review: User reviews, ratings (1-5 scale), and verification metadata.
+* Theater & Screen: Spatial infrastructure details.
+* Showtime: Pricing and showtime scheduling mapping movies to screens.
+* Seat: Coordinate systems (Row-Number) linked to screens.
+* SeatReservation: Temporary (HELD) or permanent (BOOKED) seat lock records.
+* Payment: Razorpay order simulation tracking status (PENDING, SUCCESS, FAILED).
+* Booking: Completed ticketing record associating user, showtime, seats, and payment.
+
+---
+
+5. PRODUCTION DEPLOYMENT & OPTIMIZATIONS
+To transition the local environment successfully to a cloud production server (Render), the following system adaptations were executed:
+* Database Connection: Integrated 'dj-database-url' to dynamically translate Supabase PostgreSQL database URIs into Django’s DB configuration dictionary.
+* Transaction Compatibility: Disabled server-side cursors in settings to resolve execution crashes caused by Supabase’s transactional PgBouncer pooler.
+* Static Assets Distribution: Integrated WhiteNoise middleware to compress, cache, and serve Django administrative and styling assets directly via Gunicorn.
+* Media Delivery: Configured production media routes in urls.py to bypass standard DEBUG restrictions so movie posters render properly in production.

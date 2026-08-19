@@ -4,16 +4,18 @@ from io import BytesIO
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.pdfgen import canvas
+from django.conf import settings
 
 def generate_ticket_pdf_and_qr(booking):
     buffer = BytesIO()
     p = canvas.Canvas(buffer, pagesize=letter)
     width, height = letter
 
-    # 1. Generate QR Code
-    qr_data = f"BOOKING_ID:{booking.id}|USER:{booking.user.username if booking.user else 'Guest'}|TOTAL:₹{booking.total_price}"
+    # 1. Generate QR Code with Verification URL
+    # Replace localhost with production domain in real environment
+    verify_url = f"https://example.com/ticket/verify/{booking.id}/"
     qr = qrcode.QRCode(box_size=4, border=2)
-    qr.add_data(qr_data)
+    qr.add_data(verify_url)
     qr.make(fit=True)
     qr_img = qr.make_image(fill_color="black", back_color="white")
     
@@ -40,12 +42,20 @@ def generate_ticket_pdf_and_qr(booking):
 
     p.setFont("Helvetica", 12)
     screen_name = booking.showtime.screen.name if booking.showtime and booking.showtime.screen else "Screen 1"
+    theater_name = booking.showtime.screen.theater.name if booking.showtime and booking.showtime.screen and booking.showtime.screen.theater else "Unknown"
+    theater_city = booking.showtime.screen.theater.city if booking.showtime and booking.showtime.screen and booking.showtime.screen.theater else "Unknown"
+    theater_address = booking.showtime.screen.theater.address if booking.showtime and booking.showtime.screen and booking.showtime.screen.theater else "Unknown"
     show_time = booking.showtime.start_time.strftime('%d %b %Y, %H:%M') if booking.showtime and booking.showtime.start_time else "TBD"
     
+    payment_ref = booking.payment.razorpay_payment_id if booking.payment and booking.payment.razorpay_payment_id else "N/A"
+
     details = [
-        ("Theater / Screen:", screen_name),
+        ("Theater:", f"{theater_name}, {theater_city}"),
+        ("Address:", theater_address),
+        ("Screen:", screen_name),
         ("Show Timing:", show_time),
         ("Ticket Price:", f"₹{booking.total_price}"),
+        ("Payment Ref:", payment_ref),
         ("Payment Status:", "SUCCESS (Verified)")
     ]
 
