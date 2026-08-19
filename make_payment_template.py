@@ -1,0 +1,125 @@
+import os
+
+content = """{% extends 'base.html' %}
+
+{% block title %}Secure Checkout - Showpass{% endblock %}
+
+{% block extra_css %}
+<style>
+    .payment-card {
+        max-width: 600px;
+        width: 100%;
+        margin: 0 auto;
+        position: relative;
+    }
+    .payment-card::before {
+        content: '';
+        position: absolute;
+        top: -10px; left: -10px; right: -10px; bottom: -10px;
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(236, 72, 153, 0.2));
+        border-radius: 1.5rem;
+        z-index: -1;
+        filter: blur(20px);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="payment-card">
+        <div class="glass-panel p-4 p-md-5">
+            <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary border-opacity-25">
+                <h4 class="fw-extrabold text-main mb-0 d-flex align-items-center gap-2">
+                    <i class="bi bi-shield-check text-success"></i> Secure Checkout
+                </h4>
+                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-3 py-2" style="font-family: monospace;">{{ order_id }}</span>
+            </div>
+
+            <!-- Booking Summary -->
+            <div class="mb-4 p-4 rounded-4" style="background: rgba(255, 255, 255, 0.03); border: 1px dashed var(--glass-border);">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h5 class="fw-bold text-main mb-1">{{ showtime.movie.title }}</h5>
+                        <div class="text-muted small d-flex flex-column gap-1 mt-2">
+                            <span><i class="bi bi-display me-1 text-primary"></i> {{ showtime.screen.name }}</span>
+                            <span><i class="bi bi-calendar-event me-1 text-primary"></i> {{ showtime.start_time|date:"M d, Y h:i A" }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top border-secondary border-opacity-25">
+                    <span class="text-muted fw-semibold text-uppercase tracking-wider" style="font-size: 0.8rem;">Amount Payable</span>
+                    <span class="fw-extrabold text-success fs-3">₹{{ total_amount }}</span>
+                </div>
+            </div>
+
+            <!-- Email for PDF -->
+            <div class="mb-4">
+                <label class="form-label"><i class="bi bi-envelope me-1"></i> Ticket Confirmation Email</label>
+                <input type="email" id="guest_email" class="form-control" placeholder="you@example.com" required {% if request.user.is_authenticated and request.user.email %}value="{{ request.user.email }}"{% endif %}>
+                <div class="form-text text-muted mt-2"><i class="bi bi-info-circle me-1"></i> Your verified PDF ticket and QR code will be emailed here.</div>
+            </div>
+
+            <div class="d-flex gap-3 mt-5">
+                <button type="button" id="rzp-button1" class="btn btn-primary-custom flex-grow-1 fs-5">
+                    <i class="bi bi-lock-fill me-2"></i> Pay ₹{{ total_amount }}
+                </button>
+            </div>
+            
+            <form id="razorpay-form" method="POST" action="{% url 'process_mock_payment' %}" class="d-none">
+                {% csrf_token %}
+                <input type="hidden" name="razorpay_payment_id" id="razorpay_payment_id">
+                <input type="hidden" name="razorpay_order_id" id="razorpay_order_id">
+                <input type="hidden" name="razorpay_signature" id="razorpay_signature">
+                <input type="hidden" name="guest_email" id="hidden_guest_email">
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+var options = {
+    "key": "{{ razorpay_key_id }}",
+    "amount": "{{ amount_in_paise }}",
+    "currency": "INR",
+    "name": "Showpass",
+    "description": "Movie Ticket Booking",
+    "order_id": "{{ order_id }}",
+    "handler": function (response) {
+        document.getElementById('razorpay_payment_id').value = response.razorpay_payment_id;
+        document.getElementById('razorpay_order_id').value = response.razorpay_order_id;
+        document.getElementById('razorpay_signature').value = response.razorpay_signature;
+        document.getElementById('hidden_guest_email').value = document.getElementById('guest_email').value;
+        document.getElementById('razorpay-form').submit();
+    },
+    "prefill": {
+        "email": document.getElementById('guest_email').value
+    },
+    "theme": {
+        "color": "#6366f1"
+    }
+};
+var rzp1 = new Razorpay(options);
+rzp1.on('payment.failed', function (response){
+        alert("Payment Failed! Please try again.");
+});
+document.getElementById('rzp-button1').onclick = function(e){
+    var email = document.getElementById('guest_email').value;
+    if (!email) {
+        alert("Please enter a valid email to receive your ticket.");
+        return;
+    }
+    options.prefill.email = email;
+    rzp1.open();
+    e.preventDefault();
+}
+</script>
+{% endblock %}
+"""
+
+with open('movies/templates/movies/payment_gateway.html', 'w', encoding='utf-8') as f:
+    f.write(content)
+
+os.remove('movies/templates/movies/mock_payment_gateway.html')
